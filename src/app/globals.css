@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg: #f8faf9;
+  --color-surface: #ffffff;
+  --color-text: #14201a;
+  --color-primary: #1f7a4d;
+  --color-primary-dark: #145c39;
+  --color-danger: #b3261e;
+  --color-border: #dbe4de;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
