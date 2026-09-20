@@ -20,12 +20,20 @@ function friendlyError(message: string): string {
 
 export interface RecentOccurrence {
   id: string;
-  originalServiceDate: string;
+  scheduledDate: string;
   status: string;
   priceCents: number;
 }
 
-/** The most recent past visits on the same recurring schedule, for the job detail view. */
+/**
+ * The most recent visits on the same recurring schedule that actually fall
+ * before this one on the calendar, for the job detail view. Ordered and
+ * filtered by scheduled_date (the real, current calendar date), not
+ * original_service_date -- a job that was moved keeps its original
+ * identity for generation purposes, but "recent visits" should reflect
+ * what actually happened in calendar time, not the abstract recurrence
+ * slot it was generated from.
+ */
 export async function getRecentOccurrences(
   scheduleId: string,
   beforeDate: string,
@@ -34,16 +42,16 @@ export async function getRecentOccurrences(
   const supabase = await createClient();
   const { data } = await supabase
     .from("jobs")
-    .select("id, original_service_date, status, price_cents")
+    .select("id, scheduled_date, status, price_cents")
     .eq("schedule_id", scheduleId)
     .neq("id", excludeJobId)
-    .lte("original_service_date", beforeDate)
-    .order("original_service_date", { ascending: false })
+    .lt("scheduled_date", beforeDate)
+    .order("scheduled_date", { ascending: false })
     .limit(5);
 
   return (data ?? []).map((j) => ({
     id: j.id,
-    originalServiceDate: j.original_service_date,
+    scheduledDate: j.scheduled_date,
     status: j.status,
     priceCents: j.price_cents,
   }));

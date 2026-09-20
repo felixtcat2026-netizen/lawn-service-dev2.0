@@ -29,7 +29,7 @@ export function JobDetailModal({
 
   useEffect(() => {
     let cancelled = false;
-    getRecentOccurrences(job.scheduleId, job.originalServiceDate, job.id).then((rows) => {
+    getRecentOccurrences(job.scheduleId, job.scheduledDate, job.id).then((rows) => {
       if (!cancelled) setRecent(rows);
     });
     return () => {
@@ -109,7 +109,7 @@ export function JobDetailModal({
               {recent.map((r) => (
                 <li key={r.id} className="flex justify-between text-sm text-gray-600">
                   <span>
-                    {formatShortDateLabel(r.originalServiceDate)} --{" "}
+                    {formatShortDateLabel(r.scheduledDate)} --{" "}
                     {r.status.replace("_", " ")}
                   </span>
                   <span>{formatCents(r.priceCents, job.currency)}</span>
