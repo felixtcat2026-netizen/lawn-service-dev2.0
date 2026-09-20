@@ -238,7 +238,7 @@ export default async function TodayPage() {
 
       {thenJobs.length > 0 && (
         <section>
-          <h2 className="mb-2 text-xs font-bold tracking-wider text-gray-600">THEN</h2>
+          <h2 className="mb-2 text-base font-semibold">Coming up</h2>
           <div className="space-y-2">
             {thenJobs.map((job) => {
               const card = toCard(job, org.currency, false, null);
@@ -247,21 +247,30 @@ export default async function TodayPage() {
                   key={job.id}
                   className="group rounded-2xl border border-(--color-border) bg-(--color-surface)"
                 >
-                  <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-3.5 py-3 [&::-webkit-details-marker]:hidden">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-bold tabular-nums text-gray-700">
-                      {todayJobs.indexOf(job) + 1}
-                    </span>
+                  <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[15px] font-semibold">{card.customerName}</span>
-                      <span className="block truncate text-[13px] text-gray-600">
+                      <span className="block font-display text-base font-bold leading-tight">
+                        {card.customerName}
+                      </span>
+                      <span className="mt-0.5 block truncate text-sm text-gray-600">
                         {card.description}
                       </span>
                     </span>
-                    <span className="text-[15px] font-semibold tabular-nums">
+                    <span className="font-display text-base font-bold tabular-nums">
                       {formatCents(card.priceCents, card.currency)}
                     </span>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      className="shrink-0 text-gray-500 transition-transform group-open:rotate-90"
+                      aria-hidden="true"
+                    >
+                      <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </summary>
-                  <div className="border-t border-(--color-border) p-3.5">
+                  <div className="border-t border-(--color-border) p-4">
                     <p className="mb-3 text-sm text-gray-600">{card.address}</p>
                     <JobActionsPanel job={card} />
                   </div>

@@ -4,11 +4,8 @@ import { useEffect, useState } from "react";
 import { JobActionsPanel } from "@/components/JobActionsPanel";
 import type { JobCardData } from "@/components/JobCard";
 import { getRecentOccurrences, type RecentOccurrence } from "@/lib/actions/jobs";
-import {
-  STATUS_BADGE_CLASS,
-  formatDateLabel,
-  formatShortDateLabel,
-} from "@/lib/domain/jobDisplay";
+import { StatusChip } from "@/components/StatusChip";
+import { formatDateLabel, formatShortDateLabel } from "@/lib/domain/jobDisplay";
 import { formatCents } from "@/lib/domain/money";
 
 /**
@@ -62,7 +59,7 @@ export function JobDetailModal({
       >
         <div className="mb-3 flex items-start justify-between gap-2">
           <div>
-            <p className="text-lg font-semibold">{job.customerName}</p>
+            <p className="font-display text-xl font-bold">{job.customerName}</p>
             <p className="text-sm font-medium text-(--color-primary-dark)">
               {formatDateLabel(job.scheduledDate)}
               {job.status === "rescheduled" && job.scheduledDate !== job.originalServiceDate && (
@@ -83,12 +80,10 @@ export function JobDetailModal({
         </div>
 
         <div className="mb-3 flex items-center justify-between">
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_CLASS[job.status]}`}
-          >
-            {job.status.replace("_", " ")}
+          <StatusChip status={job.status} />
+          <span className="font-display text-lg font-bold tabular-nums">
+            {formatCents(job.priceCents, job.currency)}
           </span>
-          <span className="text-sm font-medium">{formatCents(job.priceCents, job.currency)}</span>
         </div>
 
         <p className="text-sm text-gray-600">{job.address}</p>

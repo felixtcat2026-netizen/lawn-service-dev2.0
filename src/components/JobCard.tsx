@@ -1,5 +1,6 @@
 import { JobActionsPanel } from "@/components/JobActionsPanel";
-import { STATUS_BADGE_CLASS, formatDateLabel } from "@/lib/domain/jobDisplay";
+import { StatusChip } from "@/components/StatusChip";
+import { formatDateLabel } from "@/lib/domain/jobDisplay";
 import { formatCents } from "@/lib/domain/money";
 import type { JobStatus } from "@/lib/supabase/types";
 
@@ -23,42 +24,42 @@ export interface JobCardData {
 }
 
 export function JobCard({ job }: { job: JobCardData }) {
+  const movedFrom =
+    job.status === "rescheduled" && job.scheduledDate !== job.originalServiceDate
+      ? job.originalServiceDate
+      : null;
+  const showOverdue = job.isOverdue && job.status !== "completed" && job.status !== "cancelled";
+
   return (
-    <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-base font-semibold">{job.customerName}</p>
-          <p className="text-sm font-medium text-(--color-primary-dark)">
-            {formatDateLabel(job.scheduledDate)}
-            {job.status === "rescheduled" && job.scheduledDate !== job.originalServiceDate && (
-              <span className="font-normal text-gray-500">
-                {" "}
-                (moved from {formatDateLabel(job.originalServiceDate)})
-              </span>
-            )}
-          </p>
-          <p className="text-sm text-gray-600">{job.address}</p>
-          <p className="mt-1 text-sm">{job.description}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_CLASS[job.status]}`}
-          >
-            {job.status.replace("_", " ")}
-          </span>
-          <span className="text-sm font-medium">
-            {formatCents(job.priceCents, job.currency)}
-          </span>
-        </div>
+    <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4">
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <p className="text-sm font-medium text-(--color-primary-dark)">
+          {formatDateLabel(job.scheduledDate)}
+          {movedFrom && (
+            <span className="font-normal text-gray-600"> · from {formatDateLabel(movedFrom)}</span>
+          )}
+        </p>
+        <StatusChip status={job.status} />
       </div>
 
-      {job.isOverdue && job.status !== "completed" && job.status !== "cancelled" && (
-        <p className="mt-2 text-sm font-medium text-(--color-danger)">
-          Overdue -- originally due {formatDateLabel(job.originalServiceDate)}
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="font-display text-xl font-bold leading-tight tracking-tight">
+          {job.customerName}
+        </p>
+        <p className="font-display text-xl font-bold tabular-nums">
+          {formatCents(job.priceCents, job.currency)}
+        </p>
+      </div>
+      <p className="mt-1 text-sm text-gray-600">{job.address}</p>
+      <p className="mt-1.5 text-[15px] leading-snug">{job.description}</p>
+
+      {showOverdue && (
+        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-(--color-danger)">
+          Overdue. Originally due {formatDateLabel(job.originalServiceDate)}.
         </p>
       )}
 
-      <div className="mt-3">
+      <div className="mt-4">
         <JobActionsPanel job={job} />
       </div>
     </div>

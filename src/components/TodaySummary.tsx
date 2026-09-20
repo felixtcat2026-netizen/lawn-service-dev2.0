@@ -27,9 +27,9 @@ export function TodaySummary({
   return (
     <section className="space-y-3.5 rounded-3xl bg-(--color-primary-dark) p-5 text-white">
       <div>
-        <p className="text-xs font-bold tracking-widest text-green-200">EARNED TODAY</p>
+        <p className="text-sm font-medium text-green-100">Earned today</p>
         <p className="mt-1 flex items-baseline gap-2 tabular-nums">
-          <span className="text-5xl font-bold leading-none tracking-tight">
+          <span className="font-display text-5xl font-bold leading-none tracking-tight">
             {formatCents(summary.earnedCents, currency)}
           </span>
           <span className="text-[15px] text-green-100">

@@ -25,7 +25,7 @@ function formatElapsed(ms: number): string {
 export function ElapsedTimer({
   startedAt,
   priorSeconds = 0,
-  className = "font-mono text-2xl font-semibold tabular-nums",
+  className = "font-display text-2xl font-semibold tabular-nums",
 }: {
   startedAt: string;
   priorSeconds?: number;

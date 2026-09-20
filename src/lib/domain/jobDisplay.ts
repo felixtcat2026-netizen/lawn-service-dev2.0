@@ -31,10 +31,19 @@ export function tomorrowIso(fromIso: string): string {
 
 export const STATUS_BADGE_CLASS: Record<JobStatus, string> = {
   scheduled: "bg-gray-100 text-gray-700",
-  rescheduled: "bg-amber-100 text-amber-800",
-  in_progress: "bg-green-100 text-green-800",
-  completed: "bg-gray-100 text-gray-500",
-  cancelled: "bg-gray-100 text-gray-400",
+  rescheduled: "bg-amber-100 text-amber-900",
+  in_progress: "bg-green-100 text-green-900",
+  completed: "bg-gray-100 text-gray-700",
+  cancelled: "bg-gray-100 text-gray-600",
+};
+
+/** Owner-facing wording: "rescheduled" reads as "Moved" everywhere, matching the Today summary. */
+export const STATUS_LABEL: Record<JobStatus, string> = {
+  scheduled: "Scheduled",
+  rescheduled: "Moved",
+  in_progress: "In progress",
+  completed: "Done",
+  cancelled: "Skipped",
 };
 
 /** Solid color used for calendar chips/dots, where a soft badge background isn't visible enough. */

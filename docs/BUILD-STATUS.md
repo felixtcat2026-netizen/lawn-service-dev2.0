@@ -24,6 +24,20 @@ Owner-approved designs (mocked up as Design artifacts, then built):
   pass. NOT run: a browser walkthrough of the new Today page (no browser
   tool here); owner should check it on the phone after Vercel redeploys.
 
+## Job card polish for phones — 2026-09-20
+
+- Shared `JobCard`, `JobActionsPanel`, hero card, and calendar modal restyled:
+  name left / price right in the rounded system face (`font-display` =
+  `ui-rounded`), sentence-case status chip (`StatusChip`, "rescheduled" now
+  reads "Moved"), full-width 48-56px primary button, three-up secondary
+  action row, 44px+ tap targets, 16px labelled form fields, visible keyboard
+  focus, reduced-motion respected. Removed all-caps labels and the numbered
+  circles on the "Coming up" list (order there is not a route).
+- Checks run: typecheck, lint, 29/29 tests, production build, and confirmed
+  `.font-display` is emitted in the built CSS. NOT run: visual check in a
+  browser or on a phone (none available here); owner should review on the
+  phone after the Vercel redeploy.
+
 ## Live verification (Prompt 5, partial) — completed 2026-09-19
 
 The DEVELOPMENT Supabase project is now fully provisioned: both migrations
