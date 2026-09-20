@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createSchedule } from "@/lib/actions/schedules";
+import { ServiceDescriptionPicker } from "@/components/ServiceDescriptionPicker";
 
 export function ScheduleForm({
   customers,
@@ -30,15 +31,7 @@ export function ScheduleForm({
         </select>
       </label>
 
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium">Service description</span>
-        <input
-          name="description"
-          required
-          placeholder="Mow, edge, and blow"
-          className="w-full rounded-lg border border-(--color-border) px-3 py-2 text-base"
-        />
-      </label>
+      <ServiceDescriptionPicker />
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block text-sm">
