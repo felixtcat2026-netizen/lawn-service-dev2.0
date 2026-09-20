@@ -2,16 +2,16 @@ import { formatCents } from "@/lib/domain/money";
 import { joinNames, type DaySummary } from "@/lib/domain/todaySummary";
 
 const PARTS = [
-  { key: "earnedCents", label: "Done", bar: "bg-green-200", dot: "bg-green-200" },
+  { key: "completedCents", label: "Done", bar: "bg-green-200", dot: "bg-green-200" },
   { key: "workingCents", label: "Working", bar: "bg-green-400", dot: "bg-green-400" },
   { key: "movedCents", label: "Moved", bar: "bg-amber-400", dot: "bg-amber-400" },
   { key: "todoCents", label: "To do", bar: "bg-white/20", dot: "bg-white/40" },
 ] as const;
 
 /**
- * Where today's dollars stand: earned so far, what's in progress, what was
+ * Where today's service value stands: completed so far, what's in progress, what was
  * moved to another day, and what's still to do. Moved jobs are called out
- * explicitly so "earned" being lower than "scheduled" is never a mystery.
+ * explicitly so "completed" being lower than "scheduled" is never a mystery.
  */
 export function TodaySummary({
   summary,
@@ -27,14 +27,12 @@ export function TodaySummary({
   return (
     <section className="space-y-3.5 rounded-3xl bg-(--color-primary-dark) p-5 text-white">
       <div>
-        <p className="text-sm font-medium text-green-100">Earned today</p>
-        <p className="mt-1 flex items-baseline gap-2 tabular-nums">
-          <span className="font-display text-5xl font-bold leading-none tracking-tight">
-            {formatCents(summary.earnedCents, currency)}
-          </span>
-          <span className="text-[15px] text-green-100">
-            of {formatCents(summary.scheduledCents, currency)} scheduled
-          </span>
+        <p className="text-sm font-medium text-green-100">Completed service value</p>
+        <p className="mt-1 font-display text-5xl font-bold leading-none tracking-tight tabular-nums">
+          {formatCents(summary.completedCents, currency)}
+        </p>
+        <p className="mt-2 text-[15px] tabular-nums text-green-100">
+          of {formatCents(summary.scheduledCents, currency)} scheduled service value
         </p>
       </div>
 

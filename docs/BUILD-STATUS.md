@@ -1,5 +1,31 @@
 # Build Status
 
+## Phase 1 gap fixes — 2026-09-20
+
+Closing the remaining MVP gaps found in the Phase 1 review:
+
+- **Timer corrections** (`supabase/migrations/0003_time_corrections.sql`,
+  **must be applied in the Supabase SQL Editor**): `complete_job_corrected`
+  (a timer left running is closed at the owner's real duration, never longer
+  than actual elapsed time) and `correct_time_entry` (fix a closed entry,
+  including on completed jobs). Both require a reason, reject zero/negative
+  durations, times in the future and overlap with any other time entry, and
+  write the original values to `job_change_history.previous_values`. UI:
+  "Forgot to tap Complete? Enter the real time" on a running job and
+  "Recorded time wrong? Correct it" on a completed one (`JobActionsPanel`).
+- **Schedule change explanation**: Schedule page explains disable-then-create;
+  the new-schedule form warns when the selected customer already has an
+  active schedule; the Disable confirmation says what it does and doesn't do.
+- **Loading / error screens**: `(protected)/loading.tsx`,
+  `(protected)/error.tsx`, `not-found.tsx`, `global-error.tsx`.
+- **Wording**: the Today summary now says "Completed service value" and
+  "scheduled service value" (MVP section 6), not "earned".
+- Checks run: typecheck, lint, 29/29 unit tests, production build, all pass.
+  Integration suite run against the dev project: the 11 existing tests pass;
+  the 4 new time-correction tests FAIL only because migration 0003 has not
+  been applied yet ("function not found in schema cache"). NOT yet verified:
+  the new tests passing, and the new UI in a browser.
+
 ## Today page redesign + service-description chips — 2026-09-20
 
 Owner-approved designs (mocked up as Design artifacts, then built):
@@ -261,10 +287,11 @@ SUPABASE_SECRET_KEY=
       touches a live database can be verified until this is done.
 
 ## Next step
-Prompt 3 (docs/TECHNICAL-PLAN.md) and Prompt 4 (full build pass) are both
-done — see the "First development pass" section at the top of this file.
-The next step is applying the two migration files and provisioning the
-owner in a real Supabase dev project (see "Manual steps you still need to
-do" above), then running `npm run test:integration` and the manual owner
-walkthrough (Prompt 5) against that real data. Do not add new features or
-rebuild what's already done before that verification pass happens.
+1. Apply `supabase/migrations/0003_time_corrections.sql` in the Supabase SQL
+   Editor (dev project), then run `npm run test:integration` (expect 15/15).
+2. Walk the still-unchecked items of the MVP acceptance checklist on the
+   phone (duplicates after refresh, move to tomorrow, skip, conflict message,
+   deactivate/reactivate a customer, dashboard totals).
+3. Decide dev vs. a separate production Supabase project before real
+   customer data goes in, then run a real workday (the Phase 1 exit gate in
+   docs/ROADMAP.md).

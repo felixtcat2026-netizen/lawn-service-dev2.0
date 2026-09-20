@@ -227,7 +227,7 @@ export default async function TodayPage() {
         <section className="rounded-3xl border border-(--color-border) bg-(--color-surface) px-5 py-7 text-center">
           <p className="text-xl font-bold">All done for today</p>
           <p className="mt-1.5 text-[15px] tabular-nums text-gray-600">
-            {formatCents(summary.earnedCents, org.currency)} earned
+            {formatCents(summary.completedCents, org.currency)} completed service value
           </p>
         </section>
       )}

@@ -1,15 +1,28 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createSchedule } from "@/lib/actions/schedules";
 import { ServiceDescriptionPicker } from "@/components/ServiceDescriptionPicker";
 
+const RECURRENCE_PHRASE: Record<string, string> = {
+  one_time: "one-time",
+  weekly: "weekly",
+  biweekly: "every-two-weeks",
+  monthly: "monthly",
+};
+
 export function ScheduleForm({
   customers,
+  activeSchedules,
 }: {
   customers: { id: string; name: string; defaultPriceDollars: string }[];
+  activeSchedules: { customerId: string; description: string; recurrence: string }[];
 }) {
   const [state, formAction, pending] = useActionState(createSchedule, { error: null });
+  const [customerId, setCustomerId] = useState("");
+
+  const selected = customers.find((c) => c.id === customerId);
+  const existing = activeSchedules.filter((s) => s.customerId === customerId);
 
   return (
     <form action={formAction} className="space-y-3 rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
@@ -20,6 +33,8 @@ export function ScheduleForm({
         <select
           name="customer_id"
           required
+          value={customerId}
+          onChange={(e) => setCustomerId(e.target.value)}
           className="w-full rounded-lg border border-(--color-border) px-3 py-2 text-base"
         >
           <option value="">Select a customer</option>
@@ -30,6 +45,24 @@ export function ScheduleForm({
           ))}
         </select>
       </label>
+
+      {selected && existing.length > 0 && (
+        <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="font-medium">{selected.name} already has an active schedule:</p>
+          <ul className="mt-1 list-inside list-disc">
+            {existing.map((s, i) => (
+              <li key={i}>
+                {s.description} ({RECURRENCE_PHRASE[s.recurrence] ?? s.recurrence})
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2">
+            Creating another adds a second set of visits. To change how often this customer is
+            serviced, disable the old schedule under Active Schedules first, then skip or move its
+            remaining visits.
+          </p>
+        </div>
+      )}
 
       <ServiceDescriptionPicker />
 

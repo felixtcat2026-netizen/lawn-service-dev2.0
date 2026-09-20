@@ -1,6 +1,7 @@
 // Integration tests against a REAL Supabase dev project (no local Postgres
 // available in this environment -- see docs/BUILD-STATUS.md). Requires
-// migrations 0001_init.sql and 0002_functions.sql to already be applied.
+// migrations 0001_init.sql, 0002_functions.sql and 0003_time_corrections.sql
+// to already be applied.
 //
 // Each test provisions its own throwaway organization + owner user via the
 // admin (secret key) client -- which bypasses RLS for setup only -- then
@@ -427,5 +428,229 @@ describe("timer: single active timer per organization, idempotent completion", (
       .eq("job_id", job!.id)
       .eq("change_type", "complete");
     expect(history).toHaveLength(1);
+  });
+});
+
+describe("owner time corrections (require migration 0003_time_corrections.sql)", () => {
+  let org: TestOrg;
+  let otherOrg: TestOrg;
+  let jobId: string;
+
+  const HOUR_MS = 3_600_000;
+
+  async function newJob(startDate: string): Promise<string> {
+    const { scheduleId } = await seedCustomerAndSchedule(org, { startDate, recurrence: "one_time" });
+    await org.client.rpc("generate_jobs_for_schedule", { p_schedule_id: scheduleId });
+    const { data: job } = await admin
+      .from("jobs")
+      .select("id")
+      .eq("schedule_id", scheduleId)
+      .limit(1)
+      .single();
+    return job!.id;
+  }
+
+  // Simulates a timer that was started hours ago and never stopped.
+  async function backdateActiveEntry(forJobId: string, hoursAgo: number) {
+    await admin
+      .from("time_entries")
+      .update({ started_at: new Date(Date.now() - hoursAgo * HOUR_MS).toISOString() })
+      .eq("job_id", forJobId)
+      .is("ended_at", null);
+  }
+
+  beforeAll(async () => {
+    org = await provisionTestOrg("corrections");
+    otherOrg = await provisionTestOrg("corrections-other");
+    jobId = await newJob("2026-05-04");
+  });
+
+  afterAll(async () => {
+    await cleanupTestOrg(org);
+    await cleanupTestOrg(otherOrg);
+  });
+
+  it("completes a still-running timer at the corrected time and preserves the original reading", async () => {
+    await org.client.rpc("start_job", { p_job_id: jobId });
+    await backdateActiveEntry(jobId, 5);
+
+    const missingReason = await org.client.rpc("complete_job_corrected", {
+      p_job_id: jobId,
+      p_duration_seconds: 2700,
+      p_reason: "   ",
+    });
+    expect(missingReason.error?.message).toMatch(/reason is required/i);
+
+    const tooLong = await org.client.rpc("complete_job_corrected", {
+      p_job_id: jobId,
+      p_duration_seconds: 6 * 3600,
+      p_reason: "forgot",
+    });
+    expect(tooLong.error?.message).toMatch(/cannot be longer/i);
+
+    const zero = await org.client.rpc("complete_job_corrected", {
+      p_job_id: jobId,
+      p_duration_seconds: 0,
+      p_reason: "forgot",
+    });
+    expect(zero.error?.message).toMatch(/more than zero/i);
+
+    const { data: job, error } = await org.client.rpc("complete_job_corrected", {
+      p_job_id: jobId,
+      p_duration_seconds: 2700,
+      p_reason: "Forgot to tap Complete",
+      p_notes: "done",
+    });
+    expect(error).toBeNull();
+    expect(job?.status).toBe("completed");
+
+    const { data: entries } = await admin.from("time_entries").select("*").eq("job_id", jobId);
+    expect(entries).toHaveLength(1);
+    const entry = entries![0]!;
+    expect(entry.duration_seconds).toBe(2700);
+    expect(entry.is_manual_correction).toBe(true);
+    expect(entry.correction_reason).toBe("Forgot to tap Complete");
+    expect(new Date(entry.ended_at!).getTime() - new Date(entry.started_at).getTime()).toBe(
+      2700 * 1000,
+    );
+
+    const { data: history } = await admin
+      .from("job_change_history")
+      .select("previous_values, reason")
+      .eq("job_id", jobId)
+      .eq("change_type", "timer_correction");
+    expect(history).toHaveLength(1);
+    const original = history![0]!.previous_values as Record<string, number | null>;
+    expect(original.original_ended_at).toBeNull();
+    expect(original.original_elapsed_seconds).toBeGreaterThanOrEqual(5 * 3600);
+    expect(original.corrected_duration_seconds).toBe(2700);
+
+    // Idempotent: repeating it changes nothing and adds no history.
+    const again = await org.client.rpc("complete_job_corrected", {
+      p_job_id: jobId,
+      p_duration_seconds: 600,
+      p_reason: "second try",
+    });
+    expect(again.error).toBeNull();
+    const { data: afterAgain } = await admin
+      .from("time_entries")
+      .select("duration_seconds")
+      .eq("job_id", jobId);
+    expect(afterAgain![0]!.duration_seconds).toBe(2700);
+    const { data: historyAfter } = await admin
+      .from("job_change_history")
+      .select("id")
+      .eq("job_id", jobId)
+      .eq("change_type", "timer_correction");
+    expect(historyAfter).toHaveLength(1);
+  });
+
+  it("corrects a closed time entry, keeping the original values in history", async () => {
+    const { data: entry } = await admin
+      .from("time_entries")
+      .select("id, started_at")
+      .eq("job_id", jobId)
+      .single();
+
+    const noReason = await org.client.rpc("correct_time_entry", {
+      p_entry_id: entry!.id,
+      p_duration_seconds: 3600,
+      p_reason: "",
+    });
+    expect(noReason.error?.message).toMatch(/reason is required/i);
+
+    const negative = await org.client.rpc("correct_time_entry", {
+      p_entry_id: entry!.id,
+      p_duration_seconds: -60,
+      p_reason: "typo",
+    });
+    expect(negative.error?.message).toMatch(/more than zero/i);
+
+    const future = await org.client.rpc("correct_time_entry", {
+      p_entry_id: entry!.id,
+      p_duration_seconds: 10 * 3600,
+      p_reason: "typo",
+    });
+    expect(future.error?.message).toMatch(/current time/i);
+
+    const { data: fixed, error } = await org.client.rpc("correct_time_entry", {
+      p_entry_id: entry!.id,
+      p_duration_seconds: 3600,
+      p_reason: "Actually took an hour",
+    });
+    expect(error).toBeNull();
+    expect(fixed?.duration_seconds).toBe(3600);
+    expect(fixed?.is_manual_correction).toBe(true);
+
+    const { data: history } = await admin
+      .from("job_change_history")
+      .select("previous_values")
+      .eq("job_id", jobId)
+      .eq("change_type", "timer_correction")
+      .order("changed_at", { ascending: false });
+    const latest = history![0]!.previous_values as Record<string, number>;
+    expect(latest.original_duration_seconds).toBe(2700);
+    expect(latest.corrected_duration_seconds).toBe(3600);
+  });
+
+  it("rejects a correction that would overlap another time entry", async () => {
+    const otherJobId = await newJob("2026-05-11");
+    const now = Date.now();
+    const iso = (hoursAgo: number) => new Date(now - hoursAgo * HOUR_MS).toISOString();
+
+    const { data: first } = await admin
+      .from("time_entries")
+      .insert({
+        organization_id: org.orgId,
+        job_id: otherJobId,
+        started_at: iso(20),
+        ended_at: iso(19),
+        duration_seconds: 3600,
+      })
+      .select("id")
+      .single();
+    await admin.from("time_entries").insert({
+      organization_id: org.orgId,
+      job_id: otherJobId,
+      started_at: iso(18.5),
+      ended_at: iso(18),
+      duration_seconds: 1800,
+    });
+
+    // 90 minutes ends exactly when the next entry starts: touching is allowed.
+    const touching = await org.client.rpc("correct_time_entry", {
+      p_entry_id: first!.id,
+      p_duration_seconds: 5400,
+      p_reason: "ran long",
+    });
+    expect(touching.error).toBeNull();
+
+    const overlapping = await org.client.rpc("correct_time_entry", {
+      p_entry_id: first!.id,
+      p_duration_seconds: 6000,
+      p_reason: "ran even longer",
+    });
+    expect(overlapping.error?.message).toMatch(/overlap/i);
+  });
+
+  it("refuses to correct another organization's time entry", async () => {
+    const { data: entry } = await admin
+      .from("time_entries")
+      .select("id")
+      .eq("job_id", jobId)
+      .single();
+    const result = await otherOrg.client.rpc("correct_time_entry", {
+      p_entry_id: entry!.id,
+      p_duration_seconds: 60,
+      p_reason: "not mine",
+    });
+    expect(result.error).not.toBeNull();
+
+    const { data: unchanged } = await admin
+      .from("time_entries")
+      .select("duration_seconds")
+      .eq("id", entry!.id)
+      .single();
+    expect(unchanged!.duration_seconds).toBe(3600);
   });
 });

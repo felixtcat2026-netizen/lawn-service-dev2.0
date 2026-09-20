@@ -8,33 +8,33 @@ export interface DayJob {
 export interface DaySummary {
   /** Everything planned for today, including jobs that were moved off it. */
   scheduledCents: number;
-  earnedCents: number;
+  completedCents: number;
   workingCents: number;
   movedCents: number;
   todoCents: number;
 }
 
 /**
- * Splits today's planned dollars into earned / in progress / moved to
+ * Splits today's planned service value into completed / in progress / moved to
  * another day / still to do. movedCents covers jobs that were on today's
- * plan but are no longer on today's date, so the owner can see why earned
+ * plan but are no longer on today's date, so the owner can see why completed
  * is lower than scheduled instead of wondering where the money went.
  */
 export function summarizeDay(todayJobs: DayJob[], movedCents: number): DaySummary {
   let todayTotal = 0;
-  let earnedCents = 0;
+  let completedCents = 0;
   let workingCents = 0;
   for (const job of todayJobs) {
     todayTotal += job.priceCents;
-    if (job.status === "completed") earnedCents += job.priceCents;
+    if (job.status === "completed") completedCents += job.priceCents;
     else if (job.status === "in_progress") workingCents += job.priceCents;
   }
   return {
     scheduledCents: todayTotal + movedCents,
-    earnedCents,
+    completedCents,
     workingCents,
     movedCents,
-    todoCents: todayTotal - earnedCents - workingCents,
+    todoCents: todayTotal - completedCents - workingCents,
   };
 }
 

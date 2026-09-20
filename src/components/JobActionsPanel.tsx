@@ -1,19 +1,41 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { ElapsedTimer } from "@/components/ElapsedTimer";
 import { tomorrowIso } from "@/lib/domain/jobDisplay";
 import {
   completeJob,
+  completeJobCorrected,
   completeJobManual,
+  correctTimeEntry,
+  getLastTimeEntry,
   moveJob,
   skipJob,
   startJob,
   stopAndReschedule,
+  type LastTimeEntry,
 } from "@/lib/actions/jobs";
 import type { JobCardData } from "@/components/JobCard";
 
-type Panel = "none" | "complete" | "moveDate" | "skip" | "manualDuration" | "stopReschedule";
+type Panel =
+  | "none"
+  | "complete"
+  | "moveDate"
+  | "skip"
+  | "manualDuration"
+  | "stopReschedule"
+  | "correctRunning"
+  | "correctClosed";
+
+function formatMinutes(seconds: number): string {
+  const total = Math.round(seconds / 60);
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  if (hours === 0) return `${minutes} min`;
+  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
+}
+
+const LINK_BTN = "min-h-11 text-left text-sm text-gray-600 underline";
 
 const INPUT =
   "h-12 w-full rounded-xl border border-(--color-border) bg-(--color-surface) px-3 text-base";
@@ -59,11 +81,25 @@ export function JobActionsPanel({
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
   const [pending, startTransition] = useTransition();
+  // undefined = still loading, "none" = the job has no closed time entry.
+  const [lastEntry, setLastEntry] = useState<LastTimeEntry | "none" | undefined>(undefined);
+
+  useEffect(() => {
+    if (panel !== "correctClosed") return;
+    let cancelled = false;
+    getLastTimeEntry(job.id).then((entry) => {
+      if (!cancelled) setLastEntry(entry ?? "none");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [panel, job.id]);
 
   function reset() {
     setPanel("none");
     setError(null);
     setConflict(false);
+    setLastEntry(undefined);
   }
 
   function run(action: () => Promise<{ error: string | null; conflict?: boolean }>) {
@@ -129,6 +165,11 @@ export function JobActionsPanel({
           Notes: {job.completionNotes}
         </p>
       )}
+      {job.status === "completed" && panel === "none" && (
+        <button className={LINK_BTN} onClick={() => setPanel("correctClosed")}>
+          Recorded time wrong? Correct it
+        </button>
+      )}
       {job.status === "cancelled" && job.skipReason && (
         <p className="mb-2 rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-700">
           Skipped: {job.skipReason}
@@ -187,7 +228,7 @@ export function JobActionsPanel({
             </button>
           </div>
           <button
-            className="min-h-11 text-left text-sm text-gray-600 underline"
+            className={LINK_BTN}
             onClick={() => setPanel("manualDuration")}
           >
             Forgot to start the timer? Log the time
@@ -206,6 +247,9 @@ export function JobActionsPanel({
           </button>
           <button className={stopBtn} onClick={() => setPanel("stopReschedule")}>
             Stop and reschedule
+          </button>
+          <button className={LINK_BTN} onClick={() => setPanel("correctRunning")}>
+            Forgot to tap Complete? Enter the real time
           </button>
         </div>
       )}
@@ -361,6 +405,89 @@ export function JobActionsPanel({
           <div className="flex gap-2">
             <button type="submit" disabled={pending} className={CONFIRM_BTN}>
               {pending ? "Saving..." : "Complete with this time"}
+            </button>
+            <button type="button" className={CANCEL_BTN} onClick={reset}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+      {panel === "correctRunning" && (
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const minutes = Number((form.elements.namedItem("minutes") as HTMLInputElement).value);
+            const reason = (form.elements.namedItem("reason") as HTMLInputElement).value;
+            const notes = (form.elements.namedItem("notes") as HTMLTextAreaElement).value;
+            run(() => completeJobCorrected(job.id, minutes, reason, notes));
+          }}
+        >
+          <p className="text-sm text-gray-700">
+            Enter the time you actually worked. The timer&apos;s original reading is kept in this
+            visit&apos;s history.
+          </p>
+          <label className={FIELD_LABEL}>
+            <span>Minutes actually worked</span>
+            <input name="minutes" type="number" min="1" step="1" required className={INPUT} />
+          </label>
+          <label className={FIELD_LABEL}>
+            <span>Reason for the correction</span>
+            <input name="reason" type="text" required className={INPUT} />
+          </label>
+          <label className={FIELD_LABEL}>
+            <span>Notes (optional)</span>
+            <textarea name="notes" className={TEXTAREA} rows={3} />
+          </label>
+          <div className="flex gap-2">
+            <button type="submit" disabled={pending} className={CONFIRM_BTN}>
+              {pending ? "Saving..." : "Complete with this time"}
+            </button>
+            <button type="button" className={CANCEL_BTN} onClick={reset}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {panel === "correctClosed" && lastEntry === undefined && (
+        <p className="text-sm text-gray-600">Loading recorded time...</p>
+      )}
+      {panel === "correctClosed" && lastEntry === "none" && (
+        <div className="space-y-2">
+          <p className="text-sm text-gray-700">This visit has no recorded time to correct.</p>
+          <button type="button" className={CANCEL_BTN} onClick={reset}>
+            Close
+          </button>
+        </div>
+      )}
+      {panel === "correctClosed" && lastEntry !== undefined && lastEntry !== "none" && (
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const minutes = Number((form.elements.namedItem("minutes") as HTMLInputElement).value);
+            const reason = (form.elements.namedItem("reason") as HTMLInputElement).value;
+            run(() => correctTimeEntry(lastEntry.id, minutes, reason));
+          }}
+        >
+          <p className="text-sm text-gray-700">
+            Recorded for the last work session: {formatMinutes(lastEntry.durationSeconds)}. The
+            original value is kept in this visit&apos;s history.
+          </p>
+          <label className={FIELD_LABEL}>
+            <span>Minutes actually worked</span>
+            <input name="minutes" type="number" min="1" step="1" required className={INPUT} />
+          </label>
+          <label className={FIELD_LABEL}>
+            <span>Reason for the correction</span>
+            <input name="reason" type="text" required className={INPUT} />
+          </label>
+          <div className="flex gap-2">
+            <button type="submit" disabled={pending} className={CONFIRM_BTN}>
+              {pending ? "Saving..." : "Save corrected time"}
             </button>
             <button type="button" className={CANCEL_BTN} onClick={reset}>
               Cancel

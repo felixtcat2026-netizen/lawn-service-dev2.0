@@ -197,6 +197,23 @@ export type Database = {
         Args: { p_job_id: string; p_notes?: string | null };
         Returns: JobRow;
       };
+      complete_job_corrected: {
+        Args: {
+          p_job_id: string;
+          p_duration_seconds: number;
+          p_reason: string;
+          p_notes?: string | null;
+        };
+        Returns: JobRow;
+      };
+      correct_time_entry: {
+        Args: {
+          p_entry_id: string;
+          p_duration_seconds: number;
+          p_reason: string;
+        };
+        Returns: TimeEntryRow;
+      };
       complete_job_manual: {
         Args: {
           p_job_id: string;

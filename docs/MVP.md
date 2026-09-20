@@ -156,27 +156,27 @@ Foundation/auth/schema -> customers -> schedules/jobs ->
 timer/complete/reschedule -> dashboard/history -> verification.
 
 ## Acceptance checklist (manual walkthrough)
-- [ ] Log in and add a fictional customer named Test Lawn at a fictional
+- [x] Log in and add a fictional customer named Test Lawn at a fictional
       address.
-- [ ] Create a weekly service priced at 50 currency units, starting today.
-- [ ] Confirm today's job and future weekly jobs appear. Refresh twice: no
+- [x] Create a weekly service priced at 50 currency units, starting today.
+- [x] Confirm today's job and future weekly jobs appear. Refresh twice: no
       duplicates.
-- [ ] Start today's job. Refresh and reopen the browser: elapsed time
+- [x] Start today's job. Refresh and reopen the browser: elapsed time
       continues.
-- [ ] Try to start a second job: the app directs you to the existing active
+- [x] Try to start a second job: the app directs you to the existing active
       job.
-- [ ] Complete the job with a note. Confirm saved duration and customer
+- [x] Complete the job with a note. Confirm saved duration and customer
       history.
-- [ ] Move the next visit to tomorrow. Confirm it appears once and the
+- [x] Move the next visit to tomorrow. Confirm it appears once and the
       series keeps its original cadence.
-- [ ] Start that visit, then Stop and Reschedule. Restart later and
+- [x] Start that visit, then Stop and Reschedule. Restart later and
       complete; both time segments count.
-- [ ] Skip another visit. Refresh: it stays skipped and the following visit
+- [x] Skip another visit. Refresh: it stays skipped and the following visit
       remains.
-- [ ] Confirm dashboard counts and service values match these records.
-- [ ] Log out: customer information and gate codes must no longer be
+- [x] Confirm dashboard counts and service values match these records.
+- [x] Log out: customer information and gate codes must no longer be
       accessible.
-- [ ] Automated tests demonstrate month-end recurrence, two-tab timer
+- [x] Automated tests demonstrate month-end recurrence, two-tab timer
       safety, and cross-organization access denial.
 
 **Done/ready-for-pilot when:** the complete workflow uses saved database

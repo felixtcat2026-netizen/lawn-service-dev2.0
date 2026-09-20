@@ -17,7 +17,7 @@ export function DisableScheduleButton({ scheduleId }: { scheduleId: string }) {
         onClick={() => {
           if (
             !window.confirm(
-              "Disable this schedule? Resolve its future pending visits separately -- this does not cancel them automatically.",
+              "Disable this schedule? No new visits will be created. Visits already on the calendar stay until you skip or move them.",
             )
           ) {
             return;

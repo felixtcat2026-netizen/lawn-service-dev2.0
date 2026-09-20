@@ -101,6 +101,71 @@ export async function completeJobManual(
   return { error: null };
 }
 
+export async function completeJobCorrected(
+  jobId: string,
+  minutes: number,
+  reason: string,
+  notes: string,
+): Promise<ActionResult> {
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return { error: "Enter how many minutes you actually worked." };
+  }
+  if (!reason.trim()) return { error: "A reason is required to correct the time." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("complete_job_corrected", {
+    p_job_id: jobId,
+    p_duration_seconds: Math.round(minutes * 60),
+    p_reason: reason,
+    p_notes: notes || null,
+  });
+  revalidatePath("/");
+  revalidatePath("/schedule");
+  if (error) return { error: friendlyError(error.message) };
+  return { error: null };
+}
+
+export interface LastTimeEntry {
+  id: string;
+  durationSeconds: number;
+}
+
+/** The most recent closed time entry on a job -- the one a "correct the time" form edits. */
+export async function getLastTimeEntry(jobId: string): Promise<LastTimeEntry | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("time_entries")
+    .select("id, duration_seconds")
+    .eq("job_id", jobId)
+    .not("ended_at", "is", null)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data || data.duration_seconds === null) return null;
+  return { id: data.id, durationSeconds: data.duration_seconds };
+}
+
+export async function correctTimeEntry(
+  entryId: string,
+  minutes: number,
+  reason: string,
+): Promise<ActionResult> {
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return { error: "Enter how many minutes you actually worked." };
+  }
+  if (!reason.trim()) return { error: "A reason is required to correct the time." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("correct_time_entry", {
+    p_entry_id: entryId,
+    p_duration_seconds: Math.round(minutes * 60),
+    p_reason: reason,
+  });
+  revalidatePath("/");
+  revalidatePath("/schedule");
+  revalidatePath("/customers/[id]", "page");
+  if (error) return { error: friendlyError(error.message) };
+  return { error: null };
+}
+
 export async function moveJob(
   jobId: string,
   newDate: string,

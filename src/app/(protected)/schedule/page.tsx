@@ -73,7 +73,7 @@ export default async function SchedulePage() {
         .order("last_name"),
       supabase
         .from("service_schedules")
-        .select("id, description, recurrence, price_cents, start_date, is_active, customers(first_name, last_name)")
+        .select("id, customer_id, description, recurrence, price_cents, start_date, is_active, customers(first_name, last_name)")
         .eq("is_active", true)
         .order("created_at", { ascending: false }),
       supabase
@@ -112,10 +112,22 @@ export default async function SchedulePage() {
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">Schedule</h1>
 
-      <ScheduleForm customers={customerOptions} />
+      <ScheduleForm
+        customers={customerOptions}
+        activeSchedules={(schedules ?? []).map((s) => ({
+          customerId: s.customer_id,
+          description: s.description,
+          recurrence: s.recurrence,
+        }))}
+      />
 
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Active Schedules</h2>
+        <h2 className="mb-1 text-lg font-semibold">Active Schedules</h2>
+        <p className="mb-3 text-sm text-gray-600">
+          A schedule can&apos;t be edited. To change how often a customer is serviced, disable the
+          old schedule, skip or move the visits it already put on the calendar, then create a new
+          schedule above. Leaving the old one running would give the customer double visits.
+        </p>
         {(schedules ?? []).length === 0 ? (
           <p className="text-sm text-gray-500">No active schedules yet.</p>
         ) : (
