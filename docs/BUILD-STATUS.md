@@ -20,11 +20,13 @@ Closing the remaining MVP gaps found in the Phase 1 review:
   `(protected)/error.tsx`, `not-found.tsx`, `global-error.tsx`.
 - **Wording**: the Today summary now says "Completed service value" and
   "scheduled service value" (MVP section 6), not "earned".
-- Checks run: typecheck, lint, 29/29 unit tests, production build, all pass.
-  Integration suite run against the dev project: the 11 existing tests pass;
-  the 4 new time-correction tests FAIL only because migration 0003 has not
-  been applied yet ("function not found in schema cache"). NOT yet verified:
-  the new tests passing, and the new UI in a browser.
+- Migration 0003 applied to the dev project by the owner (2026-09-20).
+- Checks run: typecheck, lint, 29/29 unit tests, production build, and the
+  integration suite against the dev project: **15/15 pass** (11 existing +
+  4 new: corrected completion preserves the original reading and is
+  idempotent; closed-entry correction keeps originals; overlap, future, zero
+  and missing-reason rejected; another organization cannot correct an entry).
+  NOT verified: the new screens and forms in a browser or on a phone.
 
 ## Today page redesign + service-description chips — 2026-09-20
 
@@ -287,11 +289,8 @@ SUPABASE_SECRET_KEY=
       touches a live database can be verified until this is done.
 
 ## Next step
-1. Apply `supabase/migrations/0003_time_corrections.sql` in the Supabase SQL
-   Editor (dev project), then run `npm run test:integration` (expect 15/15).
-2. Walk the still-unchecked items of the MVP acceptance checklist on the
-   phone (duplicates after refresh, move to tomorrow, skip, conflict message,
-   deactivate/reactivate a customer, dashboard totals).
-3. Decide dev vs. a separate production Supabase project before real
+1. Try the new time-correction forms, the schedule guidance and the error
+   screens on the phone.
+2. Decide dev vs. a separate production Supabase project before real
    customer data goes in, then run a real workday (the Phase 1 exit gate in
    docs/ROADMAP.md).
