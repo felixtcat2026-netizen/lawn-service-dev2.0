@@ -1,5 +1,29 @@
 # Build Status
 
+## Today page redesign + service-description chips — 2026-09-20
+
+Owner-approved designs (mocked up as Design artifacts, then built):
+
+- **Service description picker** (`ServiceDescriptionPicker.tsx`, used by
+  `ScheduleForm`): tappable task chips build the description sentence, plus
+  an optional detail line. Emits a plain `description` form field, so
+  `createSchedule` is unchanged.
+- **Today page "Mix"** (`(protected)/page.tsx`): dollar summary on top
+  (`TodaySummary`: earned / working / moved / to do, with a note naming any
+  job stopped and rescheduled today so earned < scheduled is explained), then
+  a collapsible Overdue banner, then one hero card (`TodayHeroCard`) for the
+  job in progress or next up with big Start / Complete / Stop and Reschedule
+  buttons (`JobActionsPanel variant="hero"`), then a "Then" list (tap a row
+  to expand its full actions) and a collapsed "Finished today" list so
+  completion notes stay viewable.
+- "Moved" dollars come from `job_change_history` (move rows with
+  `previous_date` = today, made today in the business timezone, for jobs no
+  longer on today's date). Pure math is in `lib/domain/todaySummary.ts`
+  with unit tests.
+- Checks run: typecheck, lint, `npm test` (29/29), production build — all
+  pass. NOT run: a browser walkthrough of the new Today page (no browser
+  tool here); owner should check it on the phone after Vercel redeploys.
+
 ## Live verification (Prompt 5, partial) — completed 2026-09-19
 
 The DEVELOPMENT Supabase project is now fully provisioned: both migrations

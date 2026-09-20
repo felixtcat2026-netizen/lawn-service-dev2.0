@@ -17,6 +17,12 @@ export function formatShortDateLabel(iso: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+export function formatLongDateLabel(iso: string): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  const d = new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1);
+  return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+}
+
 export function tomorrowIso(fromIso: string): string {
   const d = new Date(`${fromIso}T00:00:00`);
   d.setDate(d.getDate() + 1);

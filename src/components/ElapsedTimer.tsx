@@ -25,9 +25,11 @@ function formatElapsed(ms: number): string {
 export function ElapsedTimer({
   startedAt,
   priorSeconds = 0,
+  className = "font-mono text-2xl font-semibold tabular-nums",
 }: {
   startedAt: string;
   priorSeconds?: number;
+  className?: string;
 }) {
   const startedMs = new Date(startedAt).getTime();
   const [now, setNow] = useState(() => Date.now());
@@ -38,8 +40,6 @@ export function ElapsedTimer({
   }, []);
 
   return (
-    <span className="font-mono text-2xl font-semibold tabular-nums">
-      {formatElapsed(now - startedMs + priorSeconds * 1000)}
-    </span>
+    <span className={className}>{formatElapsed(now - startedMs + priorSeconds * 1000)}</span>
   );
 }

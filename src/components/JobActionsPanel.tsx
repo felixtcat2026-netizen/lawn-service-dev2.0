@@ -24,10 +24,20 @@ type Panel = "none" | "complete" | "moveDate" | "skip" | "manualDuration" | "sto
 export function JobActionsPanel({
   job,
   onChanged,
+  variant = "default",
 }: {
   job: JobCardData;
   onChanged?: () => void;
+  /** "hero" renders the big thumb-friendly buttons and timer used on the Today page. */
+  variant?: "default" | "hero";
 }) {
+  const hero = variant === "hero";
+  const primaryBtn = hero
+    ? "h-14 w-full rounded-2xl bg-(--color-primary) text-base font-bold text-white disabled:opacity-60"
+    : "rounded-lg bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white disabled:opacity-60";
+  const stopBtn = hero
+    ? "h-12 w-full rounded-2xl border border-(--color-border) text-[15px] font-semibold text-gray-700"
+    : "rounded-lg border border-(--color-border) px-3 py-2 text-sm";
   const [panel, setPanel] = useState<Panel>("none");
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
@@ -59,7 +69,25 @@ export function JobActionsPanel({
 
   return (
     <div>
-      {job.status === "in_progress" && job.activeTimerStartedAt && (
+      {hero && job.status === "in_progress" && job.activeTimerStartedAt && (
+        <div className="mb-3 rounded-2xl border border-green-200 bg-green-50 p-3 text-center">
+          <ElapsedTimer
+            startedAt={job.activeTimerStartedAt}
+            priorSeconds={job.priorSegmentSeconds}
+            className="text-4xl font-bold tabular-nums text-(--color-primary-dark)"
+          />
+          <p className="mt-1 text-xs text-green-800">
+            Time on this visit{job.priorSegmentSeconds > 0 ? " (total)" : ""}
+          </p>
+          {job.priorSegmentSeconds > 0 && (
+            <p className="text-xs text-green-800">
+              Includes {Math.round(job.priorSegmentSeconds / 60)} min from an earlier session
+            </p>
+          )}
+        </div>
+      )}
+
+      {!hero && job.status === "in_progress" && job.activeTimerStartedAt && (
         <div className="mb-3">
           <div className="flex items-center gap-3">
             <ElapsedTimer
@@ -118,7 +146,7 @@ export function JobActionsPanel({
         <div className="flex flex-wrap gap-2">
           <button
             disabled={pending}
-            className="rounded-lg bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className={primaryBtn}
             onClick={() => run(() => startJob(job.id))}
           >
             Start Job
@@ -155,13 +183,13 @@ export function JobActionsPanel({
         <div className="flex flex-wrap gap-2">
           <button
             disabled={pending}
-            className="rounded-lg bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className={primaryBtn}
             onClick={() => setPanel("complete")}
           >
             Complete Job
           </button>
           <button
-            className="rounded-lg border border-(--color-border) px-3 py-2 text-sm"
+            className={stopBtn}
             onClick={() => setPanel("stopReschedule")}
           >
             Stop and Reschedule
