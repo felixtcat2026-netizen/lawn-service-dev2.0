@@ -1,20 +1,11 @@
-"use client";
-
-import { useState, useTransition } from "react";
-import { ElapsedTimer } from "@/components/ElapsedTimer";
+import { JobActionsPanel } from "@/components/JobActionsPanel";
+import { STATUS_BADGE_CLASS, formatDateLabel } from "@/lib/domain/jobDisplay";
 import { formatCents } from "@/lib/domain/money";
-import {
-  completeJob,
-  completeJobManual,
-  moveJob,
-  skipJob,
-  startJob,
-  stopAndReschedule,
-} from "@/lib/actions/jobs";
 import type { JobStatus } from "@/lib/supabase/types";
 
 export interface JobCardData {
   id: string;
+  scheduleId: string;
   customerName: string;
   address: string;
   status: JobStatus;
@@ -31,62 +22,7 @@ export interface JobCardData {
   isOverdue: boolean;
 }
 
-type Panel = "none" | "complete" | "moveDate" | "skip" | "manualDuration" | "stopReschedule";
-
-// Parses a "YYYY-MM-DD" business-date string into local Date parts (year,
-// month, day) and reads them back via local formatting methods -- so the
-// displayed weekday/date is self-consistent regardless of the viewer's
-// browser timezone, instead of round-tripping through `new Date(iso)`
-// (UTC) and a local formatter, which can shift the date by a day.
-function formatDateLabel(iso: string): string {
-  const [year, month, day] = iso.split("-").map(Number);
-  const d = new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1);
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-}
-
-function tomorrowIso(fromIso: string): string {
-  const d = new Date(`${fromIso}T00:00:00`);
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
 export function JobCard({ job }: { job: JobCardData }) {
-  const [panel, setPanel] = useState<Panel>("none");
-  const [error, setError] = useState<string | null>(null);
-  const [conflict, setConflict] = useState(false);
-  const [pending, startTransition] = useTransition();
-
-  function reset() {
-    setPanel("none");
-    setError(null);
-    setConflict(false);
-  }
-
-  function run(action: () => Promise<{ error: string | null; conflict?: boolean }>) {
-    startTransition(async () => {
-      setError(null);
-      setConflict(false);
-      const result = await action();
-      if (result.conflict) {
-        setConflict(true);
-        return;
-      }
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      reset();
-    });
-  }
-
-  const badge: Record<JobStatus, string> = {
-    scheduled: "bg-gray-100 text-gray-700",
-    rescheduled: "bg-amber-100 text-amber-800",
-    in_progress: "bg-green-100 text-green-800",
-    completed: "bg-gray-100 text-gray-500",
-    cancelled: "bg-gray-100 text-gray-400",
-  };
-
   return (
     <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
       <div className="flex items-start justify-between gap-2">
@@ -106,11 +42,13 @@ export function JobCard({ job }: { job: JobCardData }) {
         </div>
         <div className="flex flex-col items-end gap-1">
           <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge[job.status]}`}
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_CLASS[job.status]}`}
           >
             {job.status.replace("_", " ")}
           </span>
-          <span className="text-sm font-medium">{formatCents(job.priceCents, job.currency)}</span>
+          <span className="text-sm font-medium">
+            {formatCents(job.priceCents, job.currency)}
+          </span>
         </div>
       </div>
 
@@ -120,307 +58,9 @@ export function JobCard({ job }: { job: JobCardData }) {
         </p>
       )}
 
-      {job.status === "in_progress" && job.activeTimerStartedAt && (
-        <div className="mt-3">
-          <div className="flex items-center gap-3">
-            <ElapsedTimer
-              startedAt={job.activeTimerStartedAt}
-              priorSeconds={job.priorSegmentSeconds}
-            />
-            <span className="text-sm text-gray-500">
-              elapsed{job.priorSegmentSeconds > 0 ? " (total)" : ""}
-            </span>
-          </div>
-          {job.priorSegmentSeconds > 0 && (
-            <p className="text-xs text-gray-500">
-              Includes {Math.round(job.priorSegmentSeconds / 60)} min from an earlier session on
-              this visit
-            </p>
-          )}
-        </div>
-      )}
-
-      {job.status === "completed" && job.completionNotes && (
-        <p className="mt-2 text-sm text-gray-600">Notes: {job.completionNotes}</p>
-      )}
-      {job.status === "cancelled" && job.skipReason && (
-        <p className="mt-2 text-sm text-gray-500">Skipped: {job.skipReason}</p>
-      )}
-
-      {error && <p className="mt-2 text-sm text-(--color-danger)">{error}</p>}
-      {conflict && (
-        <div className="mt-2 rounded-lg bg-amber-50 p-3 text-sm">
-          <p className="mb-2">Another visit is already scheduled for that date.</p>
-          <div className="flex gap-2">
-            <button
-              className="rounded-lg border border-(--color-border) px-3 py-2 text-sm"
-              onClick={() => setPanel("moveDate")}
-            >
-              Choose another date
-            </button>
-            <button
-              disabled={pending}
-              className="rounded-lg bg-(--color-primary) px-3 py-2 text-sm text-white"
-              onClick={() => {
-                const dateInput = document.getElementById(
-                  `move-date-${job.id}`,
-                ) as HTMLInputElement | null;
-                const date = dateInput?.value ?? tomorrowIso(job.scheduledDate);
-                run(() => moveJob(job.id, date, "", true));
-              }}
-            >
-              Keep both
-            </button>
-          </div>
-        </div>
-      )}
-
-      {(job.status === "scheduled" || job.status === "rescheduled") && panel === "none" && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            disabled={pending}
-            className="rounded-lg bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            onClick={() => run(() => startJob(job.id))}
-          >
-            Start Job
-          </button>
-          <button
-            disabled={pending}
-            className="rounded-lg border border-(--color-border) px-3 py-2 text-sm"
-            onClick={() => run(() => moveJob(job.id, tomorrowIso(job.scheduledDate), "", false))}
-          >
-            Move to Tomorrow
-          </button>
-          <button
-            className="rounded-lg border border-(--color-border) px-3 py-2 text-sm"
-            onClick={() => setPanel("moveDate")}
-          >
-            Move to Custom Date
-          </button>
-          <button
-            className="rounded-lg border border-(--color-border) px-3 py-2 text-sm"
-            onClick={() => setPanel("skip")}
-          >
-            Skip This Visit
-          </button>
-          <button
-            className="text-sm text-gray-500 underline"
-            onClick={() => setPanel("manualDuration")}
-          >
-            Forgot to start the timer? Log time manually
-          </button>
-        </div>
-      )}
-
-      {job.status === "in_progress" && panel === "none" && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            disabled={pending}
-            className="rounded-lg bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            onClick={() => setPanel("complete")}
-          >
-            Complete Job
-          </button>
-          <button
-            className="rounded-lg border border-(--color-border) px-3 py-2 text-sm"
-            onClick={() => setPanel("stopReschedule")}
-          >
-            Stop and Reschedule
-          </button>
-        </div>
-      )}
-
-      {panel === "complete" && (
-        <form
-          className="mt-3 space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const notes = (e.currentTarget.elements.namedItem("notes") as HTMLTextAreaElement)
-              .value;
-            run(() => completeJob(job.id, notes));
-          }}
-        >
-          <textarea
-            name="notes"
-            placeholder="Completion notes (optional)"
-            className="w-full rounded-lg border border-(--color-border) p-2 text-sm"
-            rows={2}
-          />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded-lg bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white"
-            >
-              Confirm Complete
-            </button>
-            <button type="button" className="text-sm text-gray-500" onClick={reset}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-
-      {panel === "stopReschedule" && (
-        <form
-          className="mt-3 space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const form = e.currentTarget;
-            const date = (form.elements.namedItem("date") as HTMLInputElement).value;
-            const reason = (form.elements.namedItem("reason") as HTMLInputElement).value;
-            run(() => stopAndReschedule(job.id, date, reason, false));
-          }}
-        >
-          <input
-            id={`move-date-${job.id}`}
-            name="date"
-            type="date"
-            required
-            defaultValue={tomorrowIso(job.scheduledDate)}
-            className="w-full rounded-lg border border-(--color-border) p-2 text-sm"
-          />
-          <input
-            name="reason"
-            type="text"
-            placeholder="Reason (optional)"
-            className="w-full rounded-lg border border-(--color-border) p-2 text-sm"
-          />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded-lg bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white"
-            >
-              Stop and Reschedule
-            </button>
-            <button type="button" className="text-sm text-gray-500" onClick={reset}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-
-      {panel === "moveDate" && (
-        <form
-          className="mt-3 space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const form = e.currentTarget;
-            const date = (form.elements.namedItem("date") as HTMLInputElement).value;
-            const reason = (form.elements.namedItem("reason") as HTMLInputElement).value;
-            run(() => moveJob(job.id, date, reason, false));
-          }}
-        >
-          <input
-            id={`move-date-${job.id}`}
-            name="date"
-            type="date"
-            required
-            defaultValue={tomorrowIso(job.scheduledDate)}
-            className="w-full rounded-lg border border-(--color-border) p-2 text-sm"
-          />
-          <input
-            name="reason"
-            type="text"
-            placeholder="Reason (optional)"
-            className="w-full rounded-lg border border-(--color-border) p-2 text-sm"
-          />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded-lg bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white"
-            >
-              Move Visit
-            </button>
-            <button type="button" className="text-sm text-gray-500" onClick={reset}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-
-      {panel === "skip" && (
-        <form
-          className="mt-3 space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const reason = (e.currentTarget.elements.namedItem("reason") as HTMLInputElement)
-              .value;
-            run(() => skipJob(job.id, reason));
-          }}
-        >
-          <input
-            name="reason"
-            type="text"
-            required
-            placeholder="Reason for skipping (required)"
-            className="w-full rounded-lg border border-(--color-border) p-2 text-sm"
-          />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded-lg bg-(--color-danger) px-4 py-2 text-sm font-semibold text-white"
-            >
-              Confirm Skip
-            </button>
-            <button type="button" className="text-sm text-gray-500" onClick={reset}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-
-      {panel === "manualDuration" && (
-        <form
-          className="mt-3 space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const form = e.currentTarget;
-            const minutes = Number((form.elements.namedItem("minutes") as HTMLInputElement).value);
-            const reason = (form.elements.namedItem("reason") as HTMLInputElement).value;
-            const notes = (form.elements.namedItem("notes") as HTMLTextAreaElement).value;
-            run(() => completeJobManual(job.id, minutes, reason, notes));
-          }}
-        >
-          <input
-            name="minutes"
-            type="number"
-            min="0"
-            step="1"
-            required
-            placeholder="Minutes worked"
-            className="w-full rounded-lg border border-(--color-border) p-2 text-sm"
-          />
-          <input
-            name="reason"
-            type="text"
-            required
-            placeholder="Reason the timer wasn't used (required)"
-            className="w-full rounded-lg border border-(--color-border) p-2 text-sm"
-          />
-          <textarea
-            name="notes"
-            placeholder="Completion notes (optional)"
-            className="w-full rounded-lg border border-(--color-border) p-2 text-sm"
-            rows={2}
-          />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded-lg bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white"
-            >
-              Complete with Manual Time
-            </button>
-            <button type="button" className="text-sm text-gray-500" onClick={reset}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
+      <div className="mt-3">
+        <JobActionsPanel job={job} />
+      </div>
     </div>
   );
 }

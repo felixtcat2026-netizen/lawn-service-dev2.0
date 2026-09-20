@@ -18,6 +18,37 @@ function friendlyError(message: string): string {
   return message;
 }
 
+export interface RecentOccurrence {
+  id: string;
+  originalServiceDate: string;
+  status: string;
+  priceCents: number;
+}
+
+/** The most recent past visits on the same recurring schedule, for the job detail view. */
+export async function getRecentOccurrences(
+  scheduleId: string,
+  beforeDate: string,
+  excludeJobId: string,
+): Promise<RecentOccurrence[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("jobs")
+    .select("id, original_service_date, status, price_cents")
+    .eq("schedule_id", scheduleId)
+    .neq("id", excludeJobId)
+    .lte("original_service_date", beforeDate)
+    .order("original_service_date", { ascending: false })
+    .limit(5);
+
+  return (data ?? []).map((j) => ({
+    id: j.id,
+    originalServiceDate: j.original_service_date,
+    status: j.status,
+    priceCents: j.price_cents,
+  }));
+}
+
 export async function startJob(jobId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("start_job", { p_job_id: jobId });

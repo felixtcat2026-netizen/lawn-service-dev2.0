@@ -4,9 +4,12 @@ import { businessToday } from "@/lib/domain/recurrence";
 import { ScheduleForm } from "@/components/ScheduleForm";
 import { DisableScheduleButton } from "@/components/DisableScheduleButton";
 import { JobCard, type JobCardData } from "@/components/JobCard";
+import { ScheduleCalendar } from "@/components/ScheduleCalendar";
+import { addMonthsIso, compareIso } from "@/lib/domain/calendar";
 
 interface JobJoinRow {
   id: string;
+  schedule_id: string;
   status: JobCardData["status"];
   scheduled_date: string;
   original_service_date: string;
@@ -27,6 +30,7 @@ function toCard(row: JobJoinRow, currency: string, isOverdue: boolean): JobCardD
   const customer = row.customers;
   return {
     id: row.id,
+    scheduleId: row.schedule_id,
     customerName: customer ? `${customer.first_name} ${customer.last_name}` : "Unknown customer",
     address: customer ? `${customer.address_line1}, ${customer.city}, ${customer.state}` : "",
     status: row.status,
@@ -49,8 +53,19 @@ export default async function SchedulePage() {
   await supabase.rpc("generate_jobs_for_organization");
   const today = businessToday(org.timezone);
 
-  const [{ data: activeCustomers }, { data: schedules }, { data: upcomingJobs }, { data: overdueJobs }] =
-    await Promise.all([
+  // A wide window for the Week/Day/Month calendar views below -- separate
+  // from the 8-week "Upcoming" list, and includes every status (including
+  // cancelled/completed) so past and skipped visits are browsable too.
+  const calendarStart = addMonthsIso(today, -2);
+  const calendarEnd = addMonthsIso(today, 3);
+
+  const [
+    { data: activeCustomers },
+    { data: schedules },
+    { data: upcomingJobs },
+    { data: overdueJobs },
+    { data: calendarJobsRaw },
+  ] = await Promise.all([
       supabase
         .from("customers")
         .select("id, first_name, last_name, default_price_cents")
@@ -64,7 +79,7 @@ export default async function SchedulePage() {
       supabase
         .from("jobs")
         .select(
-          "id, status, scheduled_date, original_service_date, description, price_cents, completion_notes, skip_reason, customers(first_name, last_name, address_line1, city, state)",
+          "id, schedule_id, status, scheduled_date, original_service_date, description, price_cents, completion_notes, skip_reason, customers(first_name, last_name, address_line1, city, state)",
         )
         .gte("scheduled_date", today)
         .neq("status", "cancelled")
@@ -72,10 +87,18 @@ export default async function SchedulePage() {
       supabase
         .from("jobs")
         .select(
-          "id, status, scheduled_date, original_service_date, description, price_cents, completion_notes, skip_reason, customers(first_name, last_name, address_line1, city, state)",
+          "id, schedule_id, status, scheduled_date, original_service_date, description, price_cents, completion_notes, skip_reason, customers(first_name, last_name, address_line1, city, state)",
         )
         .lt("scheduled_date", today)
         .in("status", ["scheduled", "rescheduled"])
+        .order("scheduled_date", { ascending: true }),
+      supabase
+        .from("jobs")
+        .select(
+          "id, schedule_id, status, scheduled_date, original_service_date, description, price_cents, completion_notes, skip_reason, customers(first_name, last_name, address_line1, city, state)",
+        )
+        .gte("scheduled_date", calendarStart)
+        .lte("scheduled_date", calendarEnd)
         .order("scheduled_date", { ascending: true }),
     ]);
 
@@ -143,6 +166,16 @@ export default async function SchedulePage() {
             ))}
           </div>
         )}
+      </section>
+
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Calendar</h2>
+        <ScheduleCalendar
+          jobs={(calendarJobsRaw as unknown as JobJoinRow[] | null ?? []).map((job) =>
+            toCard(job, org.currency, compareIso(job.scheduled_date, today) < 0),
+          )}
+          today={today}
+        />
       </section>
     </div>
   );

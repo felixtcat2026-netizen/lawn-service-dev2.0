@@ -6,6 +6,7 @@ import { JobCard, type JobCardData } from "@/components/JobCard";
 
 interface JobJoinRow {
   id: string;
+  schedule_id: string;
   status: JobCardData["status"];
   scheduled_date: string;
   original_service_date: string;
@@ -32,6 +33,7 @@ function toCard(
   const customer = row.customers;
   return {
     id: row.id,
+    scheduleId: row.schedule_id,
     customerName: customer ? `${customer.first_name} ${customer.last_name}` : "Unknown customer",
     address: customer ? `${customer.address_line1}, ${customer.city}, ${customer.state}` : "",
     status: row.status,
@@ -61,7 +63,7 @@ export default async function TodayPage() {
     supabase
       .from("jobs")
       .select(
-        "id, status, scheduled_date, original_service_date, description, price_cents, completion_notes, skip_reason, customers(first_name, last_name, address_line1, city, state)",
+        "id, schedule_id, status, scheduled_date, original_service_date, description, price_cents, completion_notes, skip_reason, customers(first_name, last_name, address_line1, city, state)",
       )
       .eq("scheduled_date", today)
       .neq("status", "cancelled")
@@ -69,7 +71,7 @@ export default async function TodayPage() {
     supabase
       .from("jobs")
       .select(
-        "id, status, scheduled_date, original_service_date, description, price_cents, completion_notes, skip_reason, customers(first_name, last_name, address_line1, city, state)",
+        "id, schedule_id, status, scheduled_date, original_service_date, description, price_cents, completion_notes, skip_reason, customers(first_name, last_name, address_line1, city, state)",
       )
       .lt("scheduled_date", today)
       .in("status", ["scheduled", "rescheduled"])
