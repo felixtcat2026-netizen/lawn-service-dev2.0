@@ -10,6 +10,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
+import { CUSTOMER_DEACTIVATED_REASON } from "@/lib/domain/jobDisplay";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -652,5 +653,94 @@ describe("owner time corrections (require migration 0003_time_corrections.sql)",
       .eq("id", entry!.id)
       .single();
     expect(unchanged!.duration_seconds).toBe(3600);
+  });
+});
+
+describe("deactivating and reactivating a customer", () => {
+  let org: TestOrg;
+
+  beforeAll(async () => {
+    org = await provisionTestOrg("deactivate");
+  });
+
+  afterAll(async () => {
+    await cleanupTestOrg(org);
+  });
+
+  async function jobsFor(customerId: string) {
+    const { data } = await admin
+      .from("jobs")
+      .select("id, status, skip_reason")
+      .eq("customer_id", customerId);
+    return data ?? [];
+  }
+
+  it("cancels (never deletes) pending visits, and reactivation restarts nothing", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { customerId, scheduleId } = await seedCustomerAndSchedule(org, {
+      startDate: today,
+      recurrence: "weekly",
+    });
+    await org.client.rpc("generate_jobs_for_schedule", { p_schedule_id: scheduleId });
+    const before = await jobsFor(customerId);
+    expect(before.length).toBeGreaterThan(2);
+
+    const deactivated = await org.client.rpc("deactivate_customer", { p_customer_id: customerId });
+    expect(deactivated.error).toBeNull();
+
+    const afterDeactivate = await jobsFor(customerId);
+    expect(afterDeactivate).toHaveLength(before.length);
+    for (const job of afterDeactivate) {
+      expect(job.status).toBe("cancelled");
+      expect(job.skip_reason).toBe(CUSTOMER_DEACTIVATED_REASON);
+    }
+    const { data: scheduleAfterDeactivate } = await admin
+      .from("service_schedules")
+      .select("is_active")
+      .eq("id", scheduleId)
+      .single();
+    expect(scheduleAfterDeactivate!.is_active).toBe(false);
+
+    await org.client.rpc("generate_jobs_for_organization");
+    expect(await jobsFor(customerId)).toHaveLength(before.length);
+
+    const reactivated = await org.client.rpc("reactivate_customer", { p_customer_id: customerId });
+    expect(reactivated.error).toBeNull();
+    expect(reactivated.data?.is_active).toBe(true);
+
+    const { data: scheduleAfterReactivate } = await admin
+      .from("service_schedules")
+      .select("is_active")
+      .eq("id", scheduleId)
+      .single();
+    expect(scheduleAfterReactivate!.is_active).toBe(false);
+
+    await org.client.rpc("generate_jobs_for_organization");
+    const afterReactivate = await jobsFor(customerId);
+    expect(afterReactivate).toHaveLength(before.length);
+    expect(afterReactivate.every((j) => j.status === "cancelled")).toBe(true);
+  });
+
+  it("refuses to deactivate a customer whose job is in progress", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { customerId, scheduleId } = await seedCustomerAndSchedule(org, {
+      startDate: today,
+      recurrence: "weekly",
+    });
+    await org.client.rpc("generate_jobs_for_schedule", { p_schedule_id: scheduleId });
+    const [firstJob] = await jobsFor(customerId);
+
+    await org.client.rpc("start_job", { p_job_id: firstJob!.id });
+    const blocked = await org.client.rpc("deactivate_customer", { p_customer_id: customerId });
+    expect(blocked.error?.message).toMatch(/resolve the active job/i);
+
+    const { data: customer } = await admin
+      .from("customers")
+      .select("is_active")
+      .eq("id", customerId)
+      .single();
+    expect(customer!.is_active).toBe(true);
+
+    await org.client.rpc("complete_job", { p_job_id: firstJob!.id });
   });
 });

@@ -5,6 +5,7 @@ import { getCurrentOrganization } from "@/lib/supabase/org";
 import { CustomerForm } from "@/components/CustomerForm";
 import { CustomerStatusControls } from "@/components/CustomerStatusControls";
 import { updateCustomer } from "@/lib/actions/customers";
+import { statusLabel } from "@/lib/domain/jobDisplay";
 import { formatCents } from "@/lib/domain/money";
 import type { JobChangeType } from "@/lib/supabase/types";
 
@@ -42,9 +43,22 @@ export default async function CustomerDetailPage({
 
   const { data: jobs } = await supabase
     .from("jobs")
-    .select("id, scheduled_date, status, price_cents, completion_notes")
+    .select("id, scheduled_date, status, price_cents, completion_notes, skip_reason")
     .eq("customer_id", id)
     .order("scheduled_date", { ascending: false });
+
+  const [{ count: pendingVisitCount }, { count: activeScheduleCount }] = await Promise.all([
+    supabase
+      .from("jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("customer_id", id)
+      .in("status", ["scheduled", "rescheduled"]),
+    supabase
+      .from("service_schedules")
+      .select("id", { count: "exact", head: true })
+      .eq("customer_id", id)
+      .eq("is_active", true),
+  ]);
 
   const jobIds = (jobs ?? []).map((j) => j.id);
   const { data: timeEntries } =
@@ -137,7 +151,13 @@ export default async function CustomerDetailPage({
         {customer.general_notes && <p>Notes: {customer.general_notes}</p>}
       </section>
 
-      <CustomerStatusControls customerId={id} isActive={customer.is_active} />
+      <CustomerStatusControls
+        customerId={id}
+        customerName={`${customer.first_name} ${customer.last_name}`}
+        isActive={customer.is_active}
+        pendingVisitCount={pendingVisitCount ?? 0}
+        activeScheduleCount={activeScheduleCount ?? 0}
+      />
 
       <section>
         <h2 className="mb-2 text-lg font-semibold">History</h2>
@@ -160,7 +180,7 @@ export default async function CustomerDetailPage({
                   <span>{formatCents(job.price_cents, org.currency)}</span>
                 </div>
                 <p className="text-gray-600">
-                  {job.status}
+                  {statusLabel(job.status, job.skip_reason)}
                   {durationByJob.has(job.id)
                     ? ` -- ${Math.round(durationByJob.get(job.id)! / 60)} min`
                     : ""}

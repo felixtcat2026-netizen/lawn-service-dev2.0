@@ -38,9 +38,9 @@ function buildSummary(words: string[], custom: string): string {
  * optional detail line covers anything one-off. Emits a hidden
  * `name="description"` field so it drops into any form action unchanged.
  */
-export function ServiceDescriptionPicker() {
+export function ServiceDescriptionPicker({ initialDescription = "" }: { initialDescription?: string }) {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [custom, setCustom] = useState("");
+  const [custom, setCustom] = useState(initialDescription);
 
   function toggle(id: string) {
     setSelected((s) => ({ ...s, [id]: !s[id] }));

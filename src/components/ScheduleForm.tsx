@@ -14,12 +14,15 @@ const RECURRENCE_PHRASE: Record<string, string> = {
 export function ScheduleForm({
   customers,
   activeSchedules,
+  prefill,
 }: {
   customers: { id: string; name: string; defaultPriceDollars: string }[];
   activeSchedules: { customerId: string; description: string; recurrence: string }[];
+  /** Used when arriving from a reactivated customer: their last schedule's details, ready to reuse. */
+  prefill?: { customerId: string; description: string; priceDollars: string; estimatedMinutes: string };
 }) {
   const [state, formAction, pending] = useActionState(createSchedule, { error: null });
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(prefill?.customerId ?? "");
 
   const selected = customers.find((c) => c.id === customerId);
   const existing = activeSchedules.filter((s) => s.customerId === customerId);
@@ -64,7 +67,7 @@ export function ScheduleForm({
         </div>
       )}
 
-      <ServiceDescriptionPicker />
+      <ServiceDescriptionPicker initialDescription={prefill?.description} />
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block text-sm">
@@ -72,6 +75,7 @@ export function ScheduleForm({
           <input
             name="price"
             required
+            defaultValue={prefill?.priceDollars}
             placeholder="50.00"
             className="w-full rounded-lg border border-(--color-border) px-3 py-2 text-base"
           />
@@ -82,6 +86,7 @@ export function ScheduleForm({
             name="estimated_minutes"
             type="number"
             min="1"
+            defaultValue={prefill?.estimatedMinutes}
             className="w-full rounded-lg border border-(--color-border) px-3 py-2 text-base"
           />
         </label>

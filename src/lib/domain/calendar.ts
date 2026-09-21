@@ -70,3 +70,8 @@ export function isSameMonth(iso: string, monthIso: string): boolean {
 export function compareIso(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+
+/** Cancelled visits (skipped, or cancelled when a customer was deactivated) are hidden unless asked for. */
+export function filterCalendarJobs<T extends { status: string }>(jobs: T[], showCancelled: boolean): T[] {
+  return showCancelled ? jobs : jobs.filter((j) => j.status !== "cancelled");
+}

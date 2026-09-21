@@ -80,7 +80,7 @@ export function JobDetailModal({
         </div>
 
         <div className="mb-3 flex items-center justify-between">
-          <StatusChip status={job.status} />
+          <StatusChip status={job.status} skipReason={job.skipReason} />
           <span className="font-display text-lg font-bold tabular-nums">
             {formatCents(job.priceCents, job.currency)}
           </span>

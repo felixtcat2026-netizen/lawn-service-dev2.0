@@ -1,5 +1,33 @@
 # Build Status
 
+## Deactivate / reactivate cleanup — 2026-09-20
+
+Decision: cancelled visits are never deleted (history, and the cancelled rows
+are what stop the generator recreating them). The confusion was display and
+next steps, so:
+
+- Schedule calendar hides cancelled visits by default, with a "Show skipped
+  and cancelled visits (N)" toggle (`filterCalendarJobs`).
+- A visit cancelled by deactivating its customer reads "Customer inactive"
+  (not "Skipped") on cards, the calendar modal and customer history
+  (`statusLabel`, `CUSTOMER_DEACTIVATED_REASON` must match the SQL string in
+  `deactivate_customer`).
+- Deactivate confirmation states how many pending visits and schedules it
+  affects and that nothing is deleted.
+- After reactivating, a notice explains old schedules stay off and offers
+  "Start a new schedule", which opens `/schedule?customer=<id>` with the
+  customer selected and their last schedule's description, price and
+  estimated minutes prefilled.
+- Deliberately kept: deactivation also cancels overdue pending visits;
+  no "restore old schedule" button (re-enabling after a long gap would make
+  the generator create months of overdue jobs).
+- Checks run: typecheck, lint, 33 unit tests, production build, and the
+  integration suite against the dev project: 17/17 pass (2 new: deactivate
+  cancels but never deletes, reactivation restarts nothing and generation
+  adds no jobs; deactivation is refused while a job is in progress).
+  NOT verified in a browser/phone: the calendar toggle, reactivation notice
+  and prefilled schedule form.
+
 ## Phase 1 gap fixes — 2026-09-20
 
 Closing the remaining MVP gaps found in the Phase 1 review:

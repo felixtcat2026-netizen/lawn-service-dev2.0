@@ -8,6 +8,7 @@ import {
   addDaysIso,
   addMonthsIso,
   compareIso,
+  filterCalendarJobs,
   isSameMonth,
   monthGridDates,
   weekDates,
@@ -36,10 +37,13 @@ export function ScheduleCalendar({
   const [view, setView] = useState<View>("week");
   const [cursor, setCursor] = useState(today);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [showCancelled, setShowCancelled] = useState(false);
+
+  const cancelledCount = jobs.filter((j) => j.status === "cancelled").length;
 
   const jobsByDate = useMemo(() => {
     const map = new Map<string, JobCardData[]>();
-    for (const job of jobs) {
+    for (const job of filterCalendarJobs(jobs, showCancelled)) {
       const list = map.get(job.scheduledDate) ?? [];
       list.push(job);
       map.set(job.scheduledDate, list);
@@ -48,7 +52,7 @@ export function ScheduleCalendar({
       list.sort((a, b) => a.customerName.localeCompare(b.customerName));
     }
     return map;
-  }, [jobs]);
+  }, [jobs, showCancelled]);
 
   const selectedJob = selectedJobId ? jobs.find((j) => j.id === selectedJobId) : undefined;
 
@@ -124,6 +128,18 @@ export function ScheduleCalendar({
           jobsByDate={jobsByDate}
           onSelect={setSelectedJobId}
         />
+      )}
+
+      {cancelledCount > 0 && (
+        <button
+          onClick={() => setShowCancelled((v) => !v)}
+          aria-pressed={showCancelled}
+          className="mt-3 min-h-11 text-left text-sm text-gray-600 underline"
+        >
+          {showCancelled
+            ? "Hide skipped and cancelled visits"
+            : `Show skipped and cancelled visits (${cancelledCount})`}
+        </button>
       )}
 
       {selectedJob && (

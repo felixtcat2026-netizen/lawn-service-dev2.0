@@ -39,7 +39,7 @@ export function JobCard({ job }: { job: JobCardData }) {
             <span className="font-normal text-gray-600"> · from {formatDateLabel(movedFrom)}</span>
           )}
         </p>
-        <StatusChip status={job.status} />
+        <StatusChip status={job.status} skipReason={job.skipReason} />
       </div>
 
       <div className="flex items-baseline justify-between gap-3">

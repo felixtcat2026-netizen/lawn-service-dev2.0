@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  filterCalendarJobs,
   addDaysIso,
   addMonthsIso,
   compareIso,
@@ -79,5 +80,22 @@ describe("addDaysIso / compareIso", () => {
     expect(compareIso("2026-09-01", "2026-09-02")).toBeLessThan(0);
     expect(compareIso("2026-09-02", "2026-09-01")).toBeGreaterThan(0);
     expect(compareIso("2026-09-01", "2026-09-01")).toBe(0);
+  });
+});
+
+describe("filterCalendarJobs", () => {
+  const jobs = [
+    { id: "a", status: "scheduled" },
+    { id: "b", status: "cancelled" },
+    { id: "c", status: "completed" },
+    { id: "d", status: "rescheduled" },
+  ];
+
+  it("hides cancelled visits by default", () => {
+    expect(filterCalendarJobs(jobs, false).map((j) => j.id)).toEqual(["a", "c", "d"]);
+  });
+
+  it("shows everything when asked", () => {
+    expect(filterCalendarJobs(jobs, true)).toHaveLength(4);
   });
 });

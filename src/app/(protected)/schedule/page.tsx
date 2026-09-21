@@ -47,7 +47,12 @@ function toCard(row: JobJoinRow, currency: string, isOverdue: boolean): JobCardD
   };
 }
 
-export default async function SchedulePage() {
+export default async function SchedulePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ customer?: string }>;
+}) {
+  const { customer: prefillCustomerId } = await searchParams;
   const supabase = await createClient();
   const org = await getCurrentOrganization(supabase);
   await supabase.rpc("generate_jobs_for_organization");
@@ -108,11 +113,37 @@ export default async function SchedulePage() {
     defaultPriceDollars: (c.default_price_cents / 100).toFixed(2),
   }));
 
+  // Arriving from a reactivated customer: start the new-schedule form with
+  // their last schedule's details so resuming service takes two taps.
+  let prefill:
+    | { customerId: string; description: string; priceDollars: string; estimatedMinutes: string }
+    | undefined;
+  const prefillCustomer = customerOptions.find((c) => c.id === prefillCustomerId);
+  if (prefillCustomer) {
+    const { data: last } = await supabase
+      .from("service_schedules")
+      .select("description, price_cents, estimated_minutes")
+      .eq("customer_id", prefillCustomer.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    prefill = {
+      customerId: prefillCustomer.id,
+      description: last?.description ?? "",
+      priceDollars: last
+        ? (last.price_cents / 100).toFixed(2)
+        : prefillCustomer.defaultPriceDollars,
+      estimatedMinutes: last?.estimated_minutes ? String(last.estimated_minutes) : "",
+    };
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">Schedule</h1>
 
       <ScheduleForm
+        key={prefill?.customerId ?? "blank"}
+        prefill={prefill}
         customers={customerOptions}
         activeSchedules={(schedules ?? []).map((s) => ({
           customerId: s.customer_id,

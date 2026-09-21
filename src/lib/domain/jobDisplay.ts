@@ -46,6 +46,18 @@ export const STATUS_LABEL: Record<JobStatus, string> = {
   cancelled: "Skipped",
 };
 
+/** Must match the skip_reason written by the deactivate_customer database function. */
+export const CUSTOMER_DEACTIVATED_REASON = "customer deactivated";
+
+export function isCustomerDeactivatedSkip(status: JobStatus, skipReason: string | null): boolean {
+  return status === "cancelled" && skipReason === CUSTOMER_DEACTIVATED_REASON;
+}
+
+/** A visit cancelled by deactivating its customer reads differently from one the owner skipped. */
+export function statusLabel(status: JobStatus, skipReason: string | null = null): string {
+  return isCustomerDeactivatedSkip(status, skipReason) ? "Customer inactive" : STATUS_LABEL[status];
+}
+
 /** Solid color used for calendar chips/dots, where a soft badge background isn't visible enough. */
 export const STATUS_DOT_CLASS: Record<JobStatus, string> = {
   scheduled: "bg-gray-400",

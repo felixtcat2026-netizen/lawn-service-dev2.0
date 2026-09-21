@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { ElapsedTimer } from "@/components/ElapsedTimer";
-import { tomorrowIso } from "@/lib/domain/jobDisplay";
+import { isCustomerDeactivatedSkip, tomorrowIso } from "@/lib/domain/jobDisplay";
 import {
   completeJob,
   completeJobCorrected,
@@ -170,11 +170,18 @@ export function JobActionsPanel({
           Recorded time wrong? Correct it
         </button>
       )}
-      {job.status === "cancelled" && job.skipReason && (
+      {isCustomerDeactivatedSkip(job.status, job.skipReason) && (
         <p className="mb-2 rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-700">
-          Skipped: {job.skipReason}
+          Cancelled because this customer was deactivated. The visit is kept for history.
         </p>
       )}
+      {job.status === "cancelled" &&
+        job.skipReason &&
+        !isCustomerDeactivatedSkip(job.status, job.skipReason) && (
+          <p className="mb-2 rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-700">
+            Skipped: {job.skipReason}
+          </p>
+        )}
 
       {error && (
         <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-(--color-danger)">{error}</p>
