@@ -1,5 +1,29 @@
 # Build Status
 
+## Real customer data imported — 2026-09-21
+
+The owner's actual route sheet (~35 accounts across a Sun-Fri route,
+Oklahoma + Sanger/Denton/Gainesville TX) was imported into the **dev**
+Supabase project as 29 `customers` rows (one-off admin script, run once,
+not committed). **This project's Supabase dev database now holds real
+business data — do not truncate/reset it or re-run test/seed scripts
+against it without checking first.**
+
+- 6 rows from the sheet were left out as too incomplete to enter safely:
+  a literal "Customer" placeholder name, "Miss Lisa" (no address), "Mr
+  Lile" (address just "1404", no city/recurrence), "Kent" (nothing else),
+  "Miss Kayli/3 properties" (only 1 of 3 addresses given, no recurrence),
+  "Pickets House" (no recurrence). The owner has these to fill in later.
+- 3 multi-property accounts (I Love Nails and Spa, B-29 Investments,
+  Center Point Trailer Park) became one customer row per address, per the
+  MVP's one-property-per-customer rule.
+- Every imported customer has `phone = "Needs phone number"` and
+  `default_price_cents = 0` (both required, neither on the sheet), plus a
+  `general_notes` line recording the route day and the sheet's
+  Weekly/Bi-weekly for when a real schedule is created. **No schedules
+  were created** — these customers won't generate jobs until the owner
+  fills in a real phone/price and adds a schedule.
+
 ## Deactivate / reactivate cleanup — 2026-09-20
 
 Decision: cancelled visits are never deleted (history, and the cancelled rows
